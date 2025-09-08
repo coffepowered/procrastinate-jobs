@@ -84,7 +84,8 @@ def task_with_persistence_shared_conn(original_func=None, **task_kwargs):
 
         # Always pass context and apply the procrastinate task decorator
         task_kwargs['pass_context'] = True
-        return app_instance.task(**task_kwargs)(new_func)
+
+        return app_instance.app.task(**task_kwargs)(new_func)
 
     if not original_func:
         return wrap

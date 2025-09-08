@@ -23,12 +23,12 @@ async def asum(a, b):
 
 
 @task_with_persistence_shared_conn(name="sum_with_persistence", pass_context=True, retry=3) # pass context, retry
-def sum_with_persistence(context: JobContext, a, b):
+def sum_with_persistence(context: JobContext, a, b, avg_sleep_time:int=3):
     #if random.random() > 0.5:
     #    raise Exception("Who could have seen this coming?")
     
     print(f"[{context.task.name}] {context.job.id=} on {context.worker_name=} | Adding {a} + {b}")
-    time.sleep( random.randint(0, 6) ) # 3s on average
+    time.sleep( random.randint(0, avg_sleep_time) ) # 3s on average
     print(f"[{context.task.name}] Done")
 
     return {"result": a + b,

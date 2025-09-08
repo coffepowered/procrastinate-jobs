@@ -10,9 +10,8 @@ Install libraries
 > uv sync
 
 
-Run the database container (adapt as neede):
+Run the database container (adapt as needed, e.g. limiting resources):
 > docker rm -f pg-procrastinate && docker run --name pg-procrastinate --detach --rm -p 5434:5432 -e POSTGRES_PASSWORD=password postgres postgres -c max_connections=100
-
 
 Creates DB, initialize persistence table
 > python init_db.py
@@ -20,3 +19,10 @@ Creates DB, initialize persistence table
 Initialize the procrastinate app
 > procrastinate --app=papp.main.app schema --apply
 
+Schedule a few jobs
+> python orchestrator.py --max-jobs 20
+
+
+### Handy stuff
+
+Limit the resources of the db
