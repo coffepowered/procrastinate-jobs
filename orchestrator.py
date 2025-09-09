@@ -4,7 +4,7 @@ from papp.main import app
 import typer
 import random
 from papp.tasks import sum
-from papp.tasks import sum_with_persistence
+from papp.tasks import sum_with_persistence, asum_with_persistence
 
 app_cli = typer.Typer()
 
@@ -19,13 +19,17 @@ def main(
         b = random.randint(1, 100)
         print(f"[main] Scheduling sum({a}, {b})")
         i = 0
+        # TODO: check how to batch defer jobs
         while i < max_jobs: # 200 should take 1m to exectute with 10 workers
             if i % (max_jobs//10) == 0:
                 print(f"[main] Scheduled {i} jobs")
             i += 1
-            print(f"[main] Scheduling ({a}, {b}) #{i}")
-            sum_with_persistence.defer(a=a*i, b=b*i, avg_sleep_time=avg_duration)
-            time.sleep(0.002)
+            #print(f"[main] Scheduling ({a}, {b}) #{i}")
+            asum_with_persistence.defer(a=a*i, b=b*i,
+                                        avg_sleep_time=avg_duration,
+                                        fail_prob=0.05 # eg 5%
+                                        )
+            time.sleep(0.001)
         print("[main] Scheduled everything")
         
 if __name__ == "__main__":

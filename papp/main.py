@@ -22,7 +22,9 @@ pgconfig = {"host": os.environ["DB_HOST"],
 
 app = App(
     connector=PsycopgConnector( # learn more about connectors: https://procrastinate.readthedocs.io/en/stable/howto/basics/connector.html
-        kwargs=pgconfig
+        kwargs=pgconfig,
+        min_size=1,
+        max_size=4,
     ),
     import_paths=["papp.tasks"]  # where to find tasks (can be a list
 )

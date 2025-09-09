@@ -47,13 +47,25 @@ def create_database_if_not_exists():
                 print(f"Database {db_name} already exists.")
 
 def setup_database():
-    """Initialize the database schema"""
+    """Initialize the database schema and show max connections."""
     print("Setting up database schema for job persistence...")
     with psycopg.connect(**pgconfig) as conn:
         with conn.cursor() as cur:
+            # Setup the table
             cur.execute(CREATE_RESULTS_TABLE)
+            
+            
+            # Query the server for the max_connections setting
+            cur.execute("SHOW max_connections;")
+            
+            # fetchone() retrieves the next row of a query result set
+            # It returns a single tuple, so we access the first element [0]
+            max_connections = cur.fetchone()[0]
+            
+            print(f"PostgreSQL max connections: {max_connections} 🔌")
+            
+            print("Database schema setup complete.")
             conn.commit()
-    print("Database ready!")
 
 if __name__ == "__main__":
     create_database_if_not_exists()
