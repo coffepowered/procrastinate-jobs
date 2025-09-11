@@ -209,3 +209,6 @@ __marimo__/
 # Performance tests
 perf/*
 perf
+
+!perf/jobs100000_dur0.25_w8_c5_conn50
+!perf/jobs100000_dur0.25_w8_c5_conn50/*

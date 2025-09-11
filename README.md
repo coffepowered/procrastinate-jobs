@@ -2,9 +2,14 @@
 
 This is a **proof-of-concept** testing the limits of high-throughput job processing using the Procrastinate Python library with PostgreSQL as the backend.
 
-The key finding: on a small database instance (2 CPUs, 2GB RAM), this setup processed 100,000 jobs in 7 minutes and 53 seconds using 50 workers, or 1M jobs in 1h with less that 100 connections.
+Sample results: on a small database instance (2 CPUs, 2GB RAM), this setup processed
+- 100,000 jobs (avg duration = 1s) in 7 minutes and 53 seconds using 50 workers, 
+- or 100,000 jobsjobs (avg duration = 0.25s) in 2 minutes using 8 workers (that's about 6k jobs/minute on each worker),
+- or 1M jobs (avg duration = 1s) in 1h with less that 100 connections.
 
-This repository provides the code for reproduction and briefly discusses the trade-offs of this approach compared to dedicated queueing systems. Performance will vary based on workload characteristics, DB tuning, and network latency. Also, take into account competences, organization etc.
+This repository provides the code for reproduction (see also sample results under `/perf`) and briefly discusses the trade-offs of this approach compared to dedicated queueing systems. Performance will vary based on workload characteristics, DB tuning, and network latency.
+
+Also, take into account competences, organization etc.
 
 ### Approach and rationale
 Approach and Rationale
@@ -89,6 +94,8 @@ Check test result
 #### Automatically
 Edit and run `e2e_test.py`. You'll see outputs both in the shell and under the perf/ folder.
 
+> export PYTHONPATH=. && python e2e_test.py
+
 Here are sample results for the last step (analysis).
 In this case, 100k jobs (avg duration: 1s) were completed with 50 workers in about 8 minutes, on a small DB instance (2 cores, 2GB ram) with 200 max connections set on the db level.
 ```
@@ -149,19 +156,19 @@ The test lets you freely choose the number of connections. In practice, the DB w
 Each worker process has its own **single** connection pool shared among all subworkers.
 Assuming workers are always active, the total requested connections is proportional to the number of workers $N_w$:
 
-$$
+```math
 C_{total} = C_{wproc} \cdot N_w
-$$
+```
 
 Each worker has one connection pool with maximum size $p_{size}$, so the maximum connections requested per worker is simply:
-$$
+```math
 C_{wproc} = p_{size}
-$$
+```
 
 However, the actual **utilization** depends on how often connections are actively used. Each subworker makes queries independently, so the average number of active connections per worker is:
-$$
+```math
 C_{active\_per\_worker} = S \cdot Q \cdot \frac{L}{T}
-$$
+```
 
 where:
 - $S$ is the number of subworkers (e.g. async jobs being processed on the same worker. `procrastinate` calls this "concurrency")
@@ -172,19 +179,19 @@ where:
 **Example Calculation** For instance, we make about 5 queries per job with 10ms latency and 1s job duration, using 50 workers:
 
 **Maximum connections requested:**
-$$
+```math
 C_{total} = N_w \cdot p_{size} = 50 \cdot 4 = 200 \text{ connections}
-$$
+```
 
 **Average active connections:**
-$$
+```math
 C_{active} = N_w \cdot S \cdot Q \cdot \frac{L}{T} = 50 \cdot 5 \cdot 5 \cdot \frac{0.01}{1} = 12.5 \text{ connections}
-$$
+```
 
 **Connection utilization rate:**
-$$
+```math
 \text{Utilization} = \frac{C_{active}}{C_{total}} = \frac{12.5}{200} = 6.25\%
-$$
+```
 
 So while the database sees up to 200 connection requests, only ~6 are actively used on average - even under quite conservative assumptions.
 
@@ -199,11 +206,11 @@ Solutions can include (i) reducing the max pool size (would be super safe in thi
 ## Considerations: what about SQS? Tradeoffs
 
 This approach is not a universal replacement for services like SQS. The main limitation is scalability—you are bound by the resources of your database server.
-Should one use a traditional message queue like AWS SQS, or leverage PostgreSQL as our task queue backbone? This decision would shape everything from operational complexity to analytical capabilities.
+Should one use a traditional message queue like AWS SQS, or leverage PostgreSQL as a task queue backbone? This decision would shape everything from operational complexity to analytical capabilities.
 
 The PostgreSQL approach offers something compelling that managed queues struggle with: unified data architecture and [CMD-clickability](https://leontrolski.github.io/postgres-as-queue.html). Instead of managing separate systems for job queues, application data, and result storage, everything lives in one transactional database. This means when a job updates both business data and its own completion status, we get true ACID compliance. No worrying about partial failures where the job completes but the status update gets lost.
 
-This unified approach also unlocked powerful analytics capabilities. While SQS gives you basic message metrics through CloudWatch, our PostgreSQL setup lets us write complex SQL queries to understand job patterns, identify bottlenecks, and generate detailed performance reports. The same database that processes jobs can instantly tell us which workers are most efficient or how job duration correlates with payload size.
+This unified approach also unlocked powerful analytics capabilities. While SQS gives basic message metrics through CloudWatch, the PostgreSQL setup lets us write complex SQL queries to understand job patterns, identify bottlenecks, and generate detailed performance reports. The same database that processes jobs can instantly tell which workers are most efficient or how job duration correlates with payload size.
 
 | Feature | PostgreSQL Queue | AWS SQS |
 |---------|------------------|---------|
@@ -233,17 +240,3 @@ On the other hand, SQS scales to a level that is simply not possible on a single
 
 [ ] Spawn batch jobs via the orchestrator (this is the actual bottleneck ATM!)
 
-### Areas for improvement
-
-#### Comment 1: row-level lock contention
-However, the real performance ceiling in a system like this is rarely the connection count itself, but row-level lock contention on the jobs table.
-
-The FOR UPDATE SKIP LOCKED Dance: At high worker counts, dozens of workers are simultaneously trying to run SELECT ... FOR UPDATE SKIP LOCKED LIMIT 1;. While SKIP LOCKED prevents them from waiting, they are all still scanning the same index on the procrastinate_jobs table to find an available job.
-
-The Real Test: A more revealing test would be to monitor pg_stat_activity for waits on Lock:row or to use EXPLAIN (ANALYZE, BUFFERS) on the job fetching query under load. My hypothesis is that you're not CPU-bound on the DB; you're likely limited by the efficiency of this locking and fetching mechanism. Your DB's CPU was probably not sweating, but its I/O and locking subsystems were.
-
-
-#### Comment 2: what about Poison test?
-
-Poison Pills & Failing Jobs: What happens when a job fails repeatedly? Procrastinate has a retry mechanism. This means a failing job will be locked, attempted, failed, and rescheduled, consuming worker slots and database write cycles without doing useful work. A single "poison pill" job can have an outsized impact on queue latency.
-> Added 5% failure probability to base testing scenario

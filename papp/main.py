@@ -24,7 +24,7 @@ app = App(
     connector=PsycopgConnector( # learn more about connectors: https://procrastinate.readthedocs.io/en/stable/howto/basics/connector.html
         kwargs=pgconfig,
         min_size=1,
-        max_size=4,
+        max_size=2,
     ),
     import_paths=["papp.tasks"]  # where to find tasks (can be a list
 )

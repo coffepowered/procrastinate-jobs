@@ -22,15 +22,15 @@ DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING", "")
 PREFIX = f"w_{int(time.time())}_"
 
 # Parameters for the job orchestrator. TODO: Orchestrator velociy a bottleneck ATM :) 
-MAX_JOBS = 10_000
-AVG_DURATION = 10
+MAX_JOBS = 100_000
+AVG_DURATION = 0.25
 
 # Parameters for the workers
-NUM_WORKERS = 30
-CONCURRENCY = 6
+NUM_WORKERS = 8
+CONCURRENCY = 5
 
 # Postgres settings for the test
-POSTGRES_MAX_CONN = 100
+POSTGRES_MAX_CONN = 50
 POSTGRES_CPUS = 2.0
 POSTGRES_RAM = "2g"
 # we're (on the very) safe side with this formula
@@ -189,7 +189,7 @@ def main():
     time.sleep(3) # wait for postgres to be ready
     run_command(["python", "init_db.py"], "Create tracking table and init db", test_dir=test_dir)
     # TODO: don't fail if already initialized
-    run_command(["procrastinate", "--app=papp.main.app", "schema", "--apply"], "Init App", test_dir=test_dir)
+    run_command(["procrastinate", "-vv", "--app=papp.main.app", "schema", "--apply"], "Init App", test_dir=test_dir)
 
 
     # 2. Generate Jobs
