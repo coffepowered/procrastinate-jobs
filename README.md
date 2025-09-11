@@ -1,6 +1,6 @@
 # Distributed Task Processing Test
 
-This is a **proof-of-concept** testing the limits of high-throughput job processing using the Procrastinate Python library with PostgreSQL as the backend.
+This is a **proof-of-concept** testing the limits of high-throughput job processing using the [Procrastinate Python library](https://procrastinate.readthedocs.io/en/stable/) with PostgreSQL as the backend.
 
 Sample results: on a small database instance (2 CPUs, 2GB RAM), this setup processed
 - 100,000 jobs (avg duration = 1s) in 7 minutes and 53 seconds using 50 workers, 
@@ -240,3 +240,15 @@ On the other hand, SQS scales to a level that is simply not possible on a single
 
 [ ] Spawn batch jobs via the orchestrator (this is the actual bottleneck ATM!)
 
+# References
+
+The idea to use postgresSQL as a queue isn't new, or limited to `procrastinate`. Here are some selected posts and discussions
+- [The Unreasonable Effectiveness of SKIP LOCKED in PostgreSQL](https://www.inferable.ai/blog/posts/postgres-skip-locked)
+- [Supabase provides this as a built-in feature](https://supabase.com/blog/supabase-queues) via [pgmq](https://github.com/pgmq/pgmq) extension
+- Also people deploying data solutions at scale ("Despite our operational trouble, we never did replace our database job queue at Heroku") appreciate it. See how this evolved from, thanks to the Postgres' evolution [2015](https://brandur.org/postgres-queues) to [2023](https://brandur.org/river).
+- Using [LISTEN](https://www.postgresql.org/docs/current/sql-listen.html)/NOTIFY for Low-Latency Queues is now an established pattern - to be used w fallback, as `procrastinate` does. Libraries like GoodJob and pg-boss seems to do the same :)
+- Graphile is "A high performance job queue for PostgreSQL, written in Node.js". They mantain their suite of benchmarks and tips to run this at [scale](https://worker.graphile.org/docs/scaling).
+- dramatiq has a [Postgres backend](https://labs.dalibo.com/dramatiq-pg). I did not test this - wanted a simpler library
+- [chancy](https://tkte.ch/chancy/) is a python library similar to `procrastinate`. They kindly mantain a [similar projects page](https://tkte.ch/chancy/similar.html), and exopose a very nice [design](https://tkte.ch/chancy/design.html) page.
+
+If you're into discussion, you may find a ton of them via simple google searches e.g. [1](https://news.ycombinator.com/item?id=20020501)
